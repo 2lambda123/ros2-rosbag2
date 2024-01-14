@@ -174,8 +174,10 @@ TEST_F(StorageTestFixture, get_all_topics_and_types_returns_the_correct_vector) 
   const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
 
   writable_storage->open({read_write_filename, kPluginID});
-  writable_storage->create_topic({"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
-  writable_storage->create_topic({"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
+  writable_storage->create_topic(
+    {0, "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
+  writable_storage->create_topic(
+    {0, "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
 
   const auto read_only_filename = writable_storage->get_relative_file_path();
 
@@ -190,8 +192,8 @@ TEST_F(StorageTestFixture, get_all_topics_and_types_returns_the_correct_vector) 
   EXPECT_THAT(
     topics_and_types, ElementsAreArray(
   {
-    rosbag2_storage::TopicMetadata{"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
-    rosbag2_storage::TopicMetadata{"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}
+    rosbag2_storage::TopicMetadata{1, "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
+    rosbag2_storage::TopicMetadata{2, "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}
   }));
 }
 
@@ -206,10 +208,10 @@ TEST_F(StorageTestFixture, get_all_message_definitions_returns_the_correct_vecto
 
   writable_storage->open({read_write_filename, kPluginID});
   writable_storage->create_topic(
-    {"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
+    {0, "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
     msg_definition);
   writable_storage->create_topic(
-    {"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"},
+    {0, "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"},
     msg_definition);
 
   const auto read_only_filename = writable_storage->get_relative_file_path();
@@ -238,8 +240,10 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct) {
   auto writable_storage = std::make_shared<rosbag2_storage_plugins::SqliteStorage>();
   auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
   writable_storage->open({read_write_filename, kPluginID});
-  writable_storage->create_topic({"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
-  writable_storage->create_topic({"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
+  writable_storage->create_topic(
+    {0, "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
+  writable_storage->create_topic(
+    {0, "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
 
   std::vector<std::string> string_messages = {"first message", "second message", "third message"};
   std::vector<std::string> topics = {"topic1", "topic2"};
@@ -267,9 +271,9 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct) {
     metadata.topics_with_message_count, ElementsAreArray(
   {
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, 2u},
+        1, "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, 2u},
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, 1u}
+        2, "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, 1u}
   }));
   EXPECT_THAT(metadata.message_count, Eq(3u));
   EXPECT_THAT(
@@ -306,9 +310,9 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct_for_prefoxy_db_sc
     metadata.topics_with_message_count, ElementsAreArray(
   {
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic1", "type1", "rmw_format", {}, ""}, 2u},
+        1, "topic1", "type1", "rmw_format", {}, ""}, 2u},
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic2", "type2", "rmw_format", {}, ""}, 1u}
+        2, "topic2", "type2", "rmw_format", {}, ""}, 1u}
   }));
   EXPECT_THAT(metadata.message_count, Eq(3u));
   EXPECT_THAT(
@@ -405,8 +409,9 @@ TEST_F(StorageTestFixture, remove_topics_and_types_returns_the_empty_vector) {
   const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
 
   writable_storage->open({read_write_filename, kPluginID});
-  writable_storage->create_topic({"topic1", "type1", "rmw1", {}, "hash"}, {});
-  writable_storage->remove_topic({"topic1", "type1", "rmw1", {}, "hash"});
+  rosbag2_storage::TopicMetadata topic_metadata{0, "topic1", "type1", "rmw1", {}, "hash"};
+  writable_storage->create_topic(topic_metadata, {});
+  writable_storage->remove_topic(topic_metadata);
 
   const auto read_only_filename = writable_storage->get_relative_file_path();
 
