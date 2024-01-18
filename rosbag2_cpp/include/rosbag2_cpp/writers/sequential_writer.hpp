@@ -27,10 +27,12 @@
 #include "rosbag2_cpp/cache/message_cache.hpp"
 #include "rosbag2_cpp/cache/message_cache_interface.hpp"
 #include "rosbag2_cpp/converter.hpp"
+#include "rosbag2_cpp/message_definitions/local_message_definition_source.hpp"
 #include "rosbag2_cpp/serialization_format_converter_factory.hpp"
 #include "rosbag2_cpp/writer_interfaces/base_writer_interface.hpp"
 #include "rosbag2_cpp/visibility_control.hpp"
 
+#include "rosbag2_storage/message_definition.hpp"
 #include "rosbag2_storage/metadata_io.hpp"
 #include "rosbag2_storage/storage_factory.hpp"
 #include "rosbag2_storage/storage_factory_interface.hpp"
@@ -92,6 +94,18 @@ public:
   void create_topic(const rosbag2_storage::TopicMetadata & topic_with_type) override;
 
   /**
+   * Create a new topic in the underlying storage. Needs to be called for every topic used within
+   * a message which is passed to write(...).
+   *
+   * \param topic_with_type name and type identifier of topic to be created
+   * \param message_definition message definition content for this topic's type
+   * \throws runtime_error if the Writer is not open.
+   */
+  void create_topic(
+    const rosbag2_storage::TopicMetadata & topic_with_type,
+    const rosbag2_storage::MessageDefinition & message_definition) override;
+
+  /**
    * Remove a new topic in the underlying storage.
    * If creation of subscription fails remove the topic
    * from the db (more of cleanup)
@@ -103,6 +117,7 @@ public:
 
   /**
    * Write a message to a bagfile. The topic needs to have been created before writing is possible.
+   * Only writes message if within start_time_ns and end_time_ns (from storage_options).
    *
    * \param message to be written to the bagfile
    * \throws runtime_error if the Writer is not open.
@@ -149,11 +164,20 @@ protected:
   std::unordered_map<std::string, rosbag2_storage::TopicInformation> topics_names_to_info_;
   std::mutex topics_info_mutex_;
 
+  LocalMessageDefinitionSource message_definitions_;
+  // used to track message definitions written to the bag.
+  std::unordered_map<std::string,
+    rosbag2_storage::MessageDefinition> topic_names_to_message_definitions_;
+
   rosbag2_storage::BagMetadata metadata_;
 
   // Checks if the current recording bagfile needs to be split and rolled over to a new file.
   bool should_split_bagfile(
     const std::chrono::time_point<std::chrono::high_resolution_clock> & current_time) const;
+
+  // Checks if the message to be written is within accepted time range
+  bool message_within_accepted_time_range(
+    const rcutils_time_point_value_t current_time) const;
 
   // Prepares the metadata by setting initial values.
   virtual void init_metadata();

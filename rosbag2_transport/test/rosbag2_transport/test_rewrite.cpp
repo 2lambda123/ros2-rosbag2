@@ -131,12 +131,54 @@ TEST_P(TestRewrite, test_merge) {
   for (const auto & topic_info : metadata.topics_with_message_count) {
     const auto topic = topic_info.topic_metadata;
     if (topic.name == "a_empty") {
-      YAML::Node qos_node = YAML::Load(topic.offered_qos_profiles);
-      EXPECT_TRUE(qos_node.IsSequence());
-      EXPECT_EQ(qos_node.size(), 3u);
+      EXPECT_EQ(topic.offered_qos_profiles.size(), 3u);
     }
   }
 }
+
+TEST_P(TestRewrite, test_message_definitions_stored_with_merge) {
+  use_input_a();
+  use_input_b();
+
+  rosbag2_storage::StorageOptions output_storage;
+  output_storage.uri = (output_dir_ / "merged").string();
+  output_storage.storage_id = storage_id_;
+  rosbag2_transport::RecordOptions output_record;
+  output_record.all = true;
+  output_bags_.push_back({output_storage, output_record});
+
+  rosbag2_transport::bag_rewrite(input_bags_, output_bags_);
+
+  auto reader = rosbag2_transport::ReaderWriterFactory::make_reader(output_storage);
+  reader->open(output_storage);
+
+  // Fill message_definitions_map
+  std::vector<rosbag2_storage::MessageDefinition> msg_definitions;
+  reader->get_all_message_definitions(msg_definitions);
+  // Check that all 3 message definitions are present (a_empty merged from both)
+  EXPECT_THAT(msg_definitions, SizeIs(3));
+  bool found_strings_definition = false;
+  bool found_empty_definition = false;
+  bool found_basic_types_definition = false;
+  for (const auto & msg_definition : msg_definitions) {
+    if (msg_definition.topic_type == "test_msgs/msg/Empty") {
+      EXPECT_TRUE(msg_definition.encoded_message_definition.empty());
+      found_empty_definition = true;
+    }
+    if (msg_definition.topic_type == "test_msgs/msg/BasicTypes") {
+      EXPECT_FALSE(msg_definition.encoded_message_definition.empty());
+      found_basic_types_definition = true;
+    }
+    if (msg_definition.topic_type == "test_msgs/msg/Strings") {
+      EXPECT_FALSE(msg_definition.encoded_message_definition.empty());
+      found_strings_definition = true;
+    }
+  }
+  EXPECT_TRUE(found_strings_definition);
+  EXPECT_TRUE(found_empty_definition);
+  EXPECT_TRUE(found_basic_types_definition);
+}
+
 
 TEST_P(TestRewrite, test_filter_split) {
   use_input_a();

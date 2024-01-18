@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "rosbag2_storage/message_definition.hpp"
 #include "rosbag2_storage/serialized_bag_message.hpp"
 #include "rosbag2_storage/topic_metadata.hpp"
 #include "rosbag2_storage/visibility_control.hpp"
@@ -72,6 +73,8 @@ public:
   virtual std::shared_ptr<SerializedBagMessage> read_next() = 0;
 
   virtual std::vector<TopicMetadata> get_all_topics_and_types() = 0;
+
+  virtual void get_all_message_definitions(std::vector<MessageDefinition> & definitions) = 0;
 };
 
 }  // namespace storage_interfaces

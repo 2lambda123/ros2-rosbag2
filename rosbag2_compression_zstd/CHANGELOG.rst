@@ -2,6 +2,21 @@
 Changelog for package rosbag2_compression_zstd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.24.0 (2023-07-11)
+-------------------
+
+0.23.0 (2023-04-28)
+-------------------
+
+0.22.0 (2023-04-18)
+-------------------
+
+0.21.0 (2023-04-12)
+-------------------
+* Update rosbag2 to C++17. (`#1238 <https://github.com/ros2/rosbag2/issues/1238>`_)
+* Use target_link_libraries instead of ament_target_dependencies (`#1202 <https://github.com/ros2/rosbag2/issues/1202>`_)
+* Contributors: Chris Lalancette, Daisuke Nishimatsu, Michael Orlov
+
 0.20.0 (2023-02-14)
 -------------------
 

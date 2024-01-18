@@ -2,6 +2,20 @@
 Changelog for package rosbag2_performance_benchmarking_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.24.0 (2023-07-11)
+-------------------
+
+0.23.0 (2023-04-28)
+-------------------
+
+0.22.0 (2023-04-18)
+-------------------
+* Add tests for rosbag2_performance_benchmarking pkg (`#1268 <https://github.com/ros2/rosbag2/issues/1268>`_)
+* Contributors: Michael Orlov
+
+0.21.0 (2023-04-12)
+-------------------
+
 0.20.0 (2023-02-14)
 -------------------
 * Skip ament_package() call when not building rosbag2_performance_benchmarking (`#1242 <https://github.com/ros2/rosbag2/issues/1242>`_)

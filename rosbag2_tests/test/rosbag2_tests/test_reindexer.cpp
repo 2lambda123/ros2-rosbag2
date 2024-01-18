@@ -39,6 +39,7 @@
 #include "rosbag2_storage/bag_metadata.hpp"
 #include "rosbag2_storage/metadata_io.hpp"
 #include "rosbag2_storage/topic_metadata.hpp"
+#include "rosbag2_storage/message_definition.hpp"
 
 #include "rosbag2_test_common/temporary_directory_fixture.hpp"
 #include "rosbag2_test_common/tested_storage_ids.hpp"
@@ -83,6 +84,7 @@ public:
       rosbag2_storage::TopicMetadata topic;
       topic.name = "/test_topic";
       topic.type = "std_msgs/msg/String";
+      topic.type_description_hash = "type_hash_msg_string";
       writer.create_topic(topic);
 
       std_msgs::msg::String msg;

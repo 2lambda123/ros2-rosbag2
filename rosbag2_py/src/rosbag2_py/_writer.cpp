@@ -38,8 +38,9 @@ template<typename T>
 class Writer : public rosbag2_cpp::Writer
 {
 public:
-  Writer()
-  : rosbag2_cpp::Writer(std::make_unique<T>())
+  template<typename ... Args>
+  explicit Writer(Args && ... args)
+  : rosbag2_cpp::Writer(std::make_unique<T>(std::forward<Args>(args)...))
   {}
 
   /// Write a serialized message to a bag file
@@ -97,14 +98,17 @@ PYBIND11_MODULE(_writer, m) {
       const rosbag2_storage::StorageOptions &, const rosbag2_cpp::ConverterOptions &
     >(&PyWriter::open))
   .def("write", &PyWriter::write)
+  .def("close", &PyWriter::close)
   .def("remove_topic", &PyWriter::remove_topic)
-  .def("create_topic", &PyWriter::create_topic)
+  .def(
+    "create_topic",
+    pybind11::overload_cast<const rosbag2_storage::TopicMetadata &>(&PyWriter::create_topic))
   .def("take_snapshot", &PyWriter::take_snapshot)
   .def("split_bagfile", &PyWriter::split_bagfile)
   ;
 
   pybind11::class_<PyCompressionWriter>(m, "SequentialCompressionWriter")
-  .def(pybind11::init())
+  .def(pybind11::init<rosbag2_compression::CompressionOptions>())
   .def(
     "open",
     pybind11::overload_cast<
@@ -112,7 +116,11 @@ PYBIND11_MODULE(_writer, m) {
     >(&PyCompressionWriter::open))
   .def("write", &PyCompressionWriter::write)
   .def("remove_topic", &PyCompressionWriter::remove_topic)
-  .def("create_topic", &PyCompressionWriter::create_topic)
+  .def(
+    "create_topic",
+    pybind11::overload_cast<
+      const rosbag2_storage::TopicMetadata &
+    >(&PyCompressionWriter::create_topic))
   .def("take_snapshot", &PyCompressionWriter::take_snapshot)
   .def("split_bagfile", &PyCompressionWriter::split_bagfile)
   ;

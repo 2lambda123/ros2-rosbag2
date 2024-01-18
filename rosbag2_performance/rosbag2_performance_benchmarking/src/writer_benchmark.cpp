@@ -42,8 +42,10 @@ WriterBenchmark::WriterBenchmark(const std::string & name)
 
   bag_config_ = config_utils::bag_config_from_node_parameters(*this);
 
-  this->declare_parameter("results_file", bag_config_.storage_options.uri + "/results.csv");
-  this->get_parameter("results_file", results_file_);
+  const auto number_of_threads = config_utils::get_number_of_threads_from_node_parameters(*this);
+  if (number_of_threads != 0) {
+    RCLCPP_WARN(get_logger(), "number_of_threads parameter is not used in writer_benchmark");
+  }
 
   RCLCPP_INFO(get_logger(), "configuration parameters processed");
 
@@ -132,9 +134,13 @@ void WriterBenchmark::start_benchmark()
   for (auto & prod_thread : producer_threads_) {
     prod_thread.join();
   }
-  writer_->close();
 
-  result_utils::write_benchmark_results(configurations_, bag_config_, results_file_);
+  // Let running parent benchmark_launch.py know that producers finished
+  RCLCPP_INFO(get_logger(), "Producer threads finished");
+  // Wait for 1 second to let benchmark_launch.py measure CPU load
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  writer_->close();
 }
 
 void WriterBenchmark::create_producers()
@@ -150,7 +156,7 @@ void WriterBenchmark::create_producers()
         " messages before terminating");
     const unsigned int queue_max_size = 10;
     for (unsigned int i = 0; i < c.count; ++i) {
-      std::string topic = c.topic_root + std::to_string(i);
+      std::string topic = c.topic_root + "_" + std::to_string(i + 1);
       auto queue = std::make_shared<ByteMessageQueue>(queue_max_size, topic);
       queues_.push_back(queue);
       producers_.push_back(
@@ -188,7 +194,7 @@ void WriterBenchmark::create_writer()
     rosbag2_storage::TopicMetadata topic;
     topic.name = queue->topic_name();
     // TODO(adamdbrw) - replace with something more general if needed
-    topic.type = "std_msgs::msgs::ByteMultiArray";
+    topic.type = "rosbag2_performance_benchmarking_msgs/msg/ByteArray";
     topic.serialization_format = serialization_format;
     writer_->create_topic(topic);
   }

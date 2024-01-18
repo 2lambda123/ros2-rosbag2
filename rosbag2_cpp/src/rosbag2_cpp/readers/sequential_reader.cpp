@@ -196,6 +196,13 @@ std::vector<rosbag2_storage::TopicMetadata> SequentialReader::get_all_topics_and
   return topics_metadata_;
 }
 
+void SequentialReader::get_all_message_definitions(
+  std::vector<rosbag2_storage::MessageDefinition> & definitions)
+{
+  rcpputils::check_true(storage_ != nullptr, "Bag is not open. Call open() before reading.");
+  storage_->get_all_message_definitions(definitions);
+}
+
 void SequentialReader::set_filter(
   const rosbag2_storage::StorageFilter & storage_filter)
 {
@@ -311,7 +318,7 @@ void SequentialReader::check_topics_serialization_formats(
   for (const auto & topic : topics) {
     if (topic.topic_metadata.serialization_format != storage_serialization_format) {
       throw std::runtime_error(
-              "Topics with different rwm serialization format have been found. "
+              "Topics with different rmw serialization format have been found. "
               "All topics must have the same serialization format.");
     }
   }

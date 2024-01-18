@@ -81,6 +81,18 @@ public:
   void create_topic(const rosbag2_storage::TopicMetadata & topic_with_type) override;
 
   /**
+   * Create a new topic in the underlying storage. Needs to be called for every topic used within
+   * a message which is passed to write(...).
+   *
+   * \param topic_with_type name and type identifier of topic to be created
+   * \param message_definition definition of topic_with_type.type
+   * \throws runtime_error if the Writer is not open.
+   */
+  void create_topic(
+    const rosbag2_storage::TopicMetadata & topic_with_type,
+    const rosbag2_storage::MessageDefinition & message_definition) override;
+
+  /**
    * Remove a new topic in the underlying storage.
    * If creation of subscription fails remove the topic
    * from the db (more of cleanup)
@@ -169,8 +181,8 @@ protected:
   virtual void stop_compressor_threads();
 
 private:
-  std::shared_ptr<rosbag2_compression::BaseCompressorInterface> compressor_{};
   std::unique_ptr<rosbag2_compression::CompressionFactory> compression_factory_{};
+  std::shared_ptr<rosbag2_compression::BaseCompressorInterface> compressor_{};
   std::mutex compressor_queue_mutex_;
   std::queue<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>
   compressor_message_queue_ RCPPUTILS_TSA_GUARDED_BY(compressor_queue_mutex_);

@@ -35,7 +35,9 @@ public:
 
   void update_metadata(const rosbag2_storage::BagMetadata & metadata) override;
 
-  void create_topic(const rosbag2_storage::TopicMetadata & topic) override;
+  void create_topic(
+    const rosbag2_storage::TopicMetadata & topic,
+    const rosbag2_storage::MessageDefinition & message_definition) override;
 
   void remove_topic(const rosbag2_storage::TopicMetadata & topic) override;
 
@@ -51,6 +53,9 @@ public:
   override;
 
   std::vector<rosbag2_storage::TopicMetadata> get_all_topics_and_types() override;
+
+  void get_all_message_definitions(
+    std::vector<rosbag2_storage::MessageDefinition> & definitions) override;
 
   rosbag2_storage::BagMetadata get_metadata() override;
 

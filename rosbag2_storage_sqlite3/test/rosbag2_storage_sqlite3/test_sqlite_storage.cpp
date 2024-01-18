@@ -174,8 +174,8 @@ TEST_F(StorageTestFixture, get_all_topics_and_types_returns_the_correct_vector) 
   const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
 
   writable_storage->open({read_write_filename, kPluginID});
-  writable_storage->create_topic({"topic1", "type1", "rmw1", ""});
-  writable_storage->create_topic({"topic2", "type2", "rmw2", ""});
+  writable_storage->create_topic({"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
+  writable_storage->create_topic({"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
 
   const auto read_only_filename = writable_storage->get_relative_file_path();
 
@@ -190,12 +190,57 @@ TEST_F(StorageTestFixture, get_all_topics_and_types_returns_the_correct_vector) 
   EXPECT_THAT(
     topics_and_types, ElementsAreArray(
   {
-    rosbag2_storage::TopicMetadata{"topic1", "type1", "rmw1", ""},
-    rosbag2_storage::TopicMetadata{"topic2", "type2", "rmw2", ""}
+    rosbag2_storage::TopicMetadata{"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
+    rosbag2_storage::TopicMetadata{"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}
   }));
 }
 
+TEST_F(StorageTestFixture, get_all_message_definitions_returns_the_correct_vector) {
+  const rosbag2_storage::MessageDefinition msg_definition =
+  {"type1", "ros2msg", "string data", ""};
+  std::unique_ptr<rosbag2_storage::storage_interfaces::ReadWriteInterface> writable_storage =
+    std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
+
+  // extension is omitted since storage is being created; io_flag = READ_WRITE
+  const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
+
+  writable_storage->open({read_write_filename, kPluginID});
+  writable_storage->create_topic(
+    {"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"},
+    msg_definition);
+  writable_storage->create_topic(
+    {"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"},
+    msg_definition);
+
+  const auto read_only_filename = writable_storage->get_relative_file_path();
+
+  writable_storage.reset();
+
+  auto readable_storage = std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
+  readable_storage->open(
+    {read_only_filename, kPluginID},
+    rosbag2_storage::storage_interfaces::IOFlag::READ_ONLY);
+
+  std::vector<rosbag2_storage::MessageDefinition> msg_definitions;
+  readable_storage->get_all_message_definitions(msg_definitions);
+
+  EXPECT_EQ(msg_definitions.size(), 1u);
+  EXPECT_THAT(
+    msg_definitions,
+    ElementsAreArray(
+  {
+    rosbag2_storage::MessageDefinition{"type1", "ros2msg", "string data", "type_hash1"}
+  })) << msg_definition.topic_type << " " << msg_definition.encoding << " " <<
+    msg_definition.encoded_message_definition << " " << msg_definition.type_hash;
+}
+
 TEST_F(StorageTestFixture, get_metadata_returns_correct_struct) {
+  auto writable_storage = std::make_shared<rosbag2_storage_plugins::SqliteStorage>();
+  auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
+  writable_storage->open({read_write_filename, kPluginID});
+  writable_storage->create_topic({"topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, {});
+  writable_storage->create_topic({"topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, {});
+
   std::vector<std::string> string_messages = {"first message", "second message", "third message"};
   std::vector<std::string> topics = {"topic1", "topic2"};
   std::vector<std::tuple<std::string, int64_t, std::string, std::string, std::string>> messages =
@@ -206,7 +251,7 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct) {
     std::make_tuple(
       string_messages[2], static_cast<int64_t>(3e9), topics[1], "type2", "rmw_format")};
 
-  write_messages_to_sqlite(messages);
+  write_messages_to_sqlite(messages, writable_storage);
 
   const auto readable_storage = std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
   const auto db_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag.db3").string();
@@ -222,9 +267,9 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct) {
     metadata.topics_with_message_count, ElementsAreArray(
   {
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic1", "type1", "rmw_format", ""}, 2u},
+        "topic1", "type1", "rmw1", {rclcpp::QoS(1)}, "type_hash1"}, 2u},
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic2", "type2", "rmw_format", ""}, 1u}
+        "topic2", "type2", "rmw2", {rclcpp::QoS(2)}, "type_hash2"}, 1u}
   }));
   EXPECT_THAT(metadata.message_count, Eq(3u));
   EXPECT_THAT(
@@ -261,9 +306,9 @@ TEST_F(StorageTestFixture, get_metadata_returns_correct_struct_for_prefoxy_db_sc
     metadata.topics_with_message_count, ElementsAreArray(
   {
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic1", "type1", "rmw_format", ""}, 2u},
+        "topic1", "type1", "rmw_format", {}, ""}, 2u},
     rosbag2_storage::TopicInformation{rosbag2_storage::TopicMetadata{
-        "topic2", "type2", "rmw_format", ""}, 1u}
+        "topic2", "type2", "rmw_format", {}, ""}, 1u}
   }));
   EXPECT_THAT(metadata.message_count, Eq(3u));
   EXPECT_THAT(
@@ -305,15 +350,13 @@ TEST_F(StorageTestFixture, get_db_schema_version_returns_correct_value) {
   EXPECT_GE(writable_storage->get_db_schema_version(), 3);
 }
 
-TEST_F(StorageTestFixture, get_recorded_ros_distro_returns_correct_value) {
+TEST_F(StorageTestFixture, metadata_ros_distro_returns_correct_value) {
   auto writable_storage = std::make_shared<rosbag2_storage_plugins::SqliteStorage>();
-  EXPECT_TRUE(writable_storage->get_recorded_ros_distro().empty());
-
   auto db_file = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
   writable_storage->open({db_file, plugin_id_});
 
   std::string current_ros_distro = rcpputils::get_env_var("ROS_DISTRO");
-  EXPECT_EQ(writable_storage->get_recorded_ros_distro(), current_ros_distro);
+  EXPECT_EQ(writable_storage->get_metadata().ros_distro, current_ros_distro);
 }
 
 TEST_F(StorageTestFixture, check_backward_compatibility_with_schema_version_2) {
@@ -322,17 +365,14 @@ TEST_F(StorageTestFixture, check_backward_compatibility_with_schema_version_2) {
     std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
 
   EXPECT_EQ(readable_storage->get_db_schema_version(), -1);
-  EXPECT_TRUE(readable_storage->get_recorded_ros_distro().empty());
 
   auto db_file = (rcpputils::fs::path(temporary_dir_path_) / "rosbag.db3").string();
-
   readable_storage->open(
     {db_file, plugin_id_},
     rosbag2_storage::storage_interfaces::IOFlag::READ_ONLY);
-  std::vector<std::shared_ptr<rosbag2_storage::SerializedBagMessage>> read_messages;
 
   EXPECT_EQ(readable_storage->get_db_schema_version(), 2);
-  EXPECT_TRUE(readable_storage->get_recorded_ros_distro().empty());
+  EXPECT_TRUE(readable_storage->get_metadata().ros_distro.empty());
 }
 
 TEST_F(StorageTestFixture, get_metadata_returns_correct_struct_if_no_messages) {
@@ -365,8 +405,8 @@ TEST_F(StorageTestFixture, remove_topics_and_types_returns_the_empty_vector) {
   const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
 
   writable_storage->open({read_write_filename, kPluginID});
-  writable_storage->create_topic({"topic1", "type1", "rmw1", ""});
-  writable_storage->remove_topic({"topic1", "type1", "rmw1", ""});
+  writable_storage->create_topic({"topic1", "type1", "rmw1", {}, "hash"}, {});
+  writable_storage->remove_topic({"topic1", "type1", "rmw1", {}, "hash"});
 
   const auto read_only_filename = writable_storage->get_relative_file_path();
 
@@ -455,7 +495,7 @@ TEST_F(StorageTestFixture, storage_preset_profile_applies_over_defaults) {
 
   auto temp_dir = rcpputils::fs::path(temporary_dir_path_);
   const auto storage_uri = (temp_dir / "rosbag").string();
-  rosbag2_storage::StorageOptions options{storage_uri, kPluginID, 0, 0, 0, "", ""};
+  rosbag2_storage::StorageOptions options{storage_uri, kPluginID, 0, 0, 0, {}, ""};
 
   options.storage_preset_profile = "resilient";
   writable_storage->open(options, rosbag2_storage::storage_interfaces::IOFlag::READ_WRITE);

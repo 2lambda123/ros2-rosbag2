@@ -6,9 +6,10 @@ if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -30,6 +31,7 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(keyboard_handler REQUIRED)
 find_package(rcl REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw REQUIRED)
 find_package(rosbag2_compression REQUIRED)
@@ -43,27 +45,35 @@ find_package(yaml_cpp_vendor REQUIRED)
 add_library(${PROJECT_NAME} SHARED
   src/rosbag2_transport/bag_rewrite.cpp
   src/rosbag2_transport/player.cpp
-  src/rosbag2_transport/qos.cpp
+  src/rosbag2_transport/play_options.cpp
   src/rosbag2_transport/reader_writer_factory.cpp
   src/rosbag2_transport/recorder.cpp
   src/rosbag2_transport/record_options.cpp
-  src/rosbag2_transport/topic_filter.cpp)
+  src/rosbag2_transport/topic_filter.cpp
+  src/rosbag2_transport/config_options_from_node_params.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-ament_target_dependencies(${PROJECT_NAME}
-  keyboard_handler
-  rcl
-  rclcpp
-  rcutils
-  rmw
-  rosbag2_compression
-  rosbag2_cpp
-  rosbag2_interfaces
-  rosbag2_storage
-  shared_queues_vendor
-  yaml_cpp_vendor
+target_link_libraries(${PROJECT_NAME}
+  keyboard_handler::keyboard_handler
+  rcl::rcl
+  rclcpp::rclcpp
+  ${rclcpp_components_TARGETS}
+  rcutils::rcutils
+  rmw::rmw
+  rosbag2_compression::rosbag2_compression
+  rosbag2_cpp::rosbag2_cpp
+  ${rosbag2_interfaces_TARGETS}
+  rosbag2_storage::rosbag2_storage
+  shared_queues_vendor::singleproducerconsumer
+  yaml-cpp
 )
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME} PLUGIN "rosbag2_transport::Player" EXECUTABLE Rosbag2Player)
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME} PLUGIN "rosbag2_transport::Recorder" EXECUTABLE Rosbag2Recorder)
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -89,6 +99,7 @@ ament_export_libraries(${PROJECT_NAME})
 ament_export_targets(export_${PROJECT_NAME})
 
 ament_export_dependencies(
+  rclcpp_components
   keyboard_handler
   rosbag2_cpp
   rosbag2_compression
@@ -106,6 +117,12 @@ function(create_tests_for_rmw_implementation)
 
   rosbag2_transport_add_gmock(test_play
     test/rosbag2_transport/test_play.cpp
+    LINK_LIBS rosbag2_transport
+    AMENT_DEPS test_msgs rosbag2_test_common
+    ${SKIP_TEST})
+
+    rosbag2_transport_add_gmock(test_play_params
+    test/rosbag2_transport/test_play_params.cpp
     LINK_LIBS rosbag2_transport
     AMENT_DEPS test_msgs rosbag2_test_common
     ${SKIP_TEST})
@@ -171,17 +188,11 @@ function(create_tests_for_rmw_implementation)
       LINK_LIBS rosbag2_transport
       AMENT_DEPS test_msgs rosbag2_test_common)
 
-    rosbag2_transport_add_gmock(test_burst
-      test/rosbag2_transport/test_burst.cpp
-      INCLUDE_DIRS $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/rosbag2_transport>
-      LINK_LIBS rosbag2_transport
-      AMENT_DEPS test_msgs rosbag2_test_common)
-
-  rosbag2_transport_add_gmock(test_qos
-    test/rosbag2_transport/test_qos.cpp
-    INCLUDE_DIRS $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  rosbag2_transport_add_gmock(test_burst
+    test/rosbag2_transport/test_burst.cpp
+    INCLUDE_DIRS $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/rosbag2_transport>
     LINK_LIBS rosbag2_transport
-    AMENT_DEPS rosbag2_test_common yaml_cpp_vendor)
+    AMENT_DEPS test_msgs rosbag2_test_common)
 
   rosbag2_transport_add_gmock(test_record
     test/rosbag2_transport/test_record.cpp
@@ -194,6 +205,12 @@ function(create_tests_for_rmw_implementation)
     test/rosbag2_transport/test_record_all.cpp
     LINK_LIBS rosbag2_transport
     AMENT_DEPS test_msgs rosbag2_test_common)
+
+  rosbag2_transport_add_gmock(test_record_params
+    test/rosbag2_transport/test_record_params.cpp
+    LINK_LIBS rosbag2_transport
+    AMENT_DEPS test_msgs rosbag2_test_common
+    ${SKIP_TEST})
 
   rosbag2_transport_add_gmock(test_record_all_ignore_leaf_topics
     test/rosbag2_transport/test_record_all_ignore_leaf_topics.cpp
@@ -231,12 +248,25 @@ function(create_tests_for_rmw_implementation)
     LINK_LIBS rosbag2_transport
     AMENT_DEPS test_msgs rosbag2_test_common)
 
+  rosbag2_transport_add_gmock(test_component_parameters
+    test/rosbag2_transport/test_composable_recorder.cpp
+    LINK_LIBS rosbag2_transport
+    AMENT_DEPS test_msgs rosbag2_test_common)
+
+  rosbag2_transport_add_gmock(test_load_components
+    test/rosbag2_transport/test_load_components.cpp
+    LINK_LIBS rosbag2_transport
+    AMENT_DEPS test_msgs rosbag2_test_common rclcpp_components)
+
   if(${rmw_implementation} MATCHES "rmw_cyclonedds(.*)")
     ament_add_test_label(test_play_services__rmw_cyclonedds_cpp xfail)
   endif()
 
-  if(${rmw_implementation} MATCHES "rmw_fastrtps(.*)")
+  if(${rmw_implementation} MATCHES "rmw_fastrtps_cpp")
     ament_add_test_label(test_play_services__rmw_fastrtps_cpp xfail)
+  endif()
+  if(${rmw_implementation} MATCHES "rmw_fastrtps_dynamic_cpp")
+    ament_add_test_label(test_play_services__rmw_fastrtps_dynamic_cpp xfail)
   endif()
 endfunction()
 
@@ -256,22 +286,27 @@ if(BUILD_TESTING)
     test/rosbag2_transport/test_record_options.cpp)
   target_link_libraries(test_record_options ${PROJECT_NAME})
 
+  ament_add_gmock(test_type_description_hash
+    test/rosbag2_transport/test_type_description_hash.cpp)
+  target_link_libraries(test_type_description_hash ${PROJECT_NAME})
+
   ament_add_gmock(test_topic_filter
     test/rosbag2_transport/test_topic_filter.cpp)
   target_include_directories(test_topic_filter PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/rosbag2_transport>)
-  target_link_libraries(test_topic_filter rosbag2_transport)
+  target_link_libraries(test_topic_filter
+    ${PROJECT_NAME}
+  )
 
   ament_add_gmock(test_rewrite
     test/rosbag2_transport/test_rewrite.cpp)
-  target_link_libraries(test_rewrite ${PROJECT_NAME})
-  ament_target_dependencies(
-    test_rewrite
-    keyboard_handler
-    rcpputils
-    rosbag2_cpp
-    rosbag2_test_common
-    test_msgs
+  target_link_libraries(test_rewrite
+    ${PROJECT_NAME}
+    keyboard_handler::keyboard_handler
+    rcpputils::rcpputils
+    rosbag2_cpp::rosbag2_cpp
+    rosbag2_test_common::rosbag2_test_common
+    ${test_msgs_TARGTES}
   )
 endif()
 

@@ -2,6 +2,23 @@
 Changelog for package sqlite3_vendor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.24.0 (2023-07-11)
+-------------------
+* Switch to ament_cmake_vendor_package (`#1400 <https://github.com/ros2/rosbag2/issues/1400>`_)
+* Contributors: Scott K Logan
+
+0.23.0 (2023-04-28)
+-------------------
+
+0.22.0 (2023-04-18)
+-------------------
+
+0.21.0 (2023-04-12)
+-------------------
+* Update to sqlite3 3.37.2 (`#1274 <https://github.com/ros2/rosbag2/issues/1274>`_)
+  This matches version distributed in Ubuntu Jammy.
+* Contributors: Scott K Logan
+
 0.20.0 (2023-02-14)
 -------------------
 
